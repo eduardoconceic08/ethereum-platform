@@ -1,0 +1,193 @@
+body {
+  /* Font family adapted from medium.com */
+  font-family: -apple-system, BlinkMacSystemFont,
+  "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell",
+  "Fira Sans", "Droid Sans", "Helvetica Neue",
+  sans-serif;
+  margin: 0;
+  position: relative;
+  background-color: #F9F9F9;
+    /* Put a border to seperate Mist Nav UI */
+  border-left: 1px solid #DDD;
+}
+div#main {
+  width: 100%;
+}
+
+#new-post-title {
+  border: 0;
+  outline: 0;
+  font-size: 2em;
+  font-weight: bold;
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  max-height: 4em;
+  padding: 0;
+  margin: 0;
+}
+
+h1 {
+  margin: 0;
+  padding: 0;
+}
+
+#new-post-title[contenteditable=true]:empty:not(:focus):after {
+  content: attr(placeholder);
+  color: gray;
+}
+
+#new-post-body {
+  outline: 0;
+  min-height: 4em;
+  font-size: 1em;
+  margin-bottom: 1em;
+  padding-bottom: 1em;
+}
+#new-post-body *:first-child {
+  margin-top: 0;
+}
+
+@media(max-width:600px) {
+  body {
+    border-left: 0;
+  }
+  /* Break up toolbar to two rows of 4 */
+  .medium-editor-toolbar-actions {
+    max-width: 240px;
+
+  }
+  /* Fit the link + buttons in the same line */
+  .medium-editor-toolbar-form .medium-editor-toolbar-input {
+    max-width: 200px;
+  }
+
+  /* Horizontal grid lines for multiple rows of actions */
+  .medium-editor-toolbar li button.medium-editor-action {
+    border-bottom: 1px solid #5b3a0e;
+  }
+  .collapsable {
+    display: none;
+  }
+}
+
+blockquote {
+  margin: 25px;
+  border-left: 6px solid #df0d32;
+  padding-left: 9px;
+  margin-left: -15px;
+  color: #555;
+}
+
+div.medium-editor-placeholder:after {
+  color: #a9a9a9;
+  font-style: normal;
+}
+
+/** ----------- LIST CSS ------------- */
+.view-align ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #DDD;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.view-align ul > li {
+  display: block;
+  background-color: white;
+  padding: .5em 1em;
+  font-weight: normal;
+  font-size: .66em;
+  margin: 0;
+  border-top: 1px solid #EEE;
+  -webkit-transition: background-color .2s ease-in,color .2s ease-in;
+  transition: background-color .2s ease-in,color .2s ease-in;
+}
+
+.view-align ul > li:first-child {
+  border-radius: 5px 5px 0 0;
+  border-top: 0;
+}
+.view-align ul > li:last-child {
+  border-radius: 0 0 5px 5px;
+}
+.view-align ul > li:hover {
+  background-color: #FCFCFC;
+}
+
+.view-align {
+  padding: 0;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.view-align > div {
+  padding: 0 .66em 1em;
+  font-weight: bold;
+  font-size: 1.5em;
+}
+.view-align > ol {
+  padding: 0;
+  margin: 0;
+  list-style-type: none;
+}
+
+.view-align > ol > li {
+  display: block;
+  margin-bottom: 1em;
+  background-color: #FFF;
+  border: 1px solid #DDD;
+  -webkit-transition: background-color .2s ease-in,color .2s ease-in;
+  transition: background-color .2s ease-in,color .2s ease-in;
+}
+.view-align > ol > li:hover {
+  background-color: #FCFCFC;
+}
+
+.view-align > ol > li span {
+  text-transform: uppercase;
+  color: gray;
+  font-weight: normal;
+  font-size: 69%;
+}
+
+/** ----------- NAV CSS ------------- */
+#navigation li {
+  display: inline;
+  margin: 0 1em;
+}
+
+a {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+}
+
+li a {
+  font-weight: bold;
+  padding: 1em;
+  text-decoration: none;
+  color: #3a3a3a;
+  display: block;
+}
+
+.flex-grow {
+  -webkit-flex: 1 0 0;
+  flex: 1 0 0;
+}
+
+.flex-shrink {
+  -webkit-flex: 0 1 auto;
+  flex: 0 1 auto;
+}
+.flex {
+  display: -webkit-flex;
+  display: flex;
+}
+
+#channel::-webkit-input-placeholder {
+  color: gray;
+}
