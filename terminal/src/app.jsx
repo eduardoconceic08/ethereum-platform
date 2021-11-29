@@ -65,8 +65,8 @@ class Post extends React.Component {
             body: JSON.parse(content[0].args.document).body,
             publisher: post[0].args.accountID,
             timestamp: post[0].args.timestamp,
-            cred: parseInt(credRanks[0][0].toString()),
-            rank: parseInt(credRanks[1][0].toString()),
+            cred: credRanks[0][0].toNumber(),
+            rank: credRanks[1][0].toNumber(),
             funds: funds
           });
         });
@@ -113,11 +113,11 @@ class Post extends React.Component {
               credrank.getCredRanksByContents(credsign.address, [this.props.id], (error, credRanks) => {
                 this.setState({
                   signing: false,
-                  cred: parseInt(credRanks[0][0].toString()),
-                  rank: parseInt(credRanks[1][0].toString()),
+                  cred: credRanks[0][0].toNumber(),
+                  rank: credRanks[1][0].toNumber(),
                   newCred: '',
                   signed: true,
-                  funds: parseInt(signature.args.newCred.toString())
+                  funds: signature.args.newCred.toNumber()
                 });
               });
             }
@@ -287,62 +287,65 @@ class Create extends React.Component {
   }
 
   submitPost() {
-
-    var errors = [];
-    var title = document.getElementById('new-post-title').value;
-    var body = toMarkdown(document.getElementById('new-post-body'));
-
-    var attributes = JSON.stringify({
-      version: '1.0',
-      title: title
-    });
-    var doc = JSON.stringify({
-      version: '1.0',
-      body: body
-    });
-
-    if (credsign.getChannelByName(this.props.channel) == 0) {
-      errors.push('Channel must be between 3 and 30 characters and consist of only letters numbers and underscores');
-    }
-    if (title.length < 10 || title > 100) {
-      errors.push('Title must be between 10 and 100 characters');
-    }
     this.setState({
-      error: errors.join('. '),
       view: 'submit'
     });
+    credsign.getChannelByName(this.props.channel, (error, channelID) => {
+      var errors = [];
+      var title = document.getElementById('new-post-title').value;
+      var body = toMarkdown(document.getElementById('new-post-body'));
 
-    if (errors.length == 0) {
-      var nonce = web3.sha3(web3.toBigNumber(0).constructor.random().toString());
-      this.setState({
-        nonce: nonce
-      })
-      credsign.post.estimateGas(this.props.channel, attributes, doc, nonce, 0, credrank.address, {from: this.props.account, value: 0}, (error, gasEstimate) => {
-        console.log(gasEstimate);
-        gasEstimate += 100000;
-        credsign.post(this.props.channel, attributes, doc, nonce, 0, credrank.address, {from: this.props.account, value: 0, gas: gasEstimate}, (error) => {
-          if (error) {
-            this.setState({
-              error: error.toString()
-            });
-          }
-          else {
-            var watcher = credsign.Store({accountID: this.props.account, nonce: this.state.nonce}, {fromBlock: 'latest'});
-            watcher.watch((error, post) => {
-              watcher.stopWatching();
-              if (error) {
-                this.setState({
-                  error: error.toString()
-                });
-              }
-              else {
-                window.location.hash = `#/channel/${this.props.channel}/post/0x${post.args.contentID.toString(16)}`;
-              }
-            });
-          }
-        });
+      var attributes = JSON.stringify({
+        version: '1.0',
+        title: title
       });
-    }
+      var doc = JSON.stringify({
+        version: '1.0',
+        body: body
+      });
+
+      if (channelID == 0) {
+        errors.push('Channel must be between 3 and 30 characters and consist of only letters numbers and underscores');
+      }
+      if (title.length < 10 || title > 100) {
+        errors.push('Title must be between 10 and 100 characters');
+      }
+      this.setState({
+        error: errors.join('. ')
+      });
+
+      if (errors.length == 0) {
+        var nonce = web3.sha3(web3.toBigNumber(0).constructor.random().toString());
+        this.setState({
+          nonce: nonce
+        })
+        credsign.post.estimateGas(this.props.channel, attributes, doc, nonce, 0, credrank.address, {from: this.props.account, value: 0}, (error, gasEstimate) => {
+          console.log(gasEstimate);
+          gasEstimate += 100000;
+          credsign.post(this.props.channel, attributes, doc, nonce, 0, credrank.address, {from: this.props.account, value: 0, gas: gasEstimate}, (error) => {
+            if (error) {
+              this.setState({
+                error: error.toString()
+              });
+            }
+            else {
+              var watcher = credsign.Store({accountID: this.props.account, nonce: this.state.nonce}, {fromBlock: 'latest'});
+              watcher.watch((error, post) => {
+                watcher.stopWatching();
+                if (error) {
+                  this.setState({
+                    error: error.toString()
+                  });
+                }
+                else {
+                  window.location.hash = `#/channel/${this.props.channel}/post/0x${post.args.contentID.toString(16)}`;
+                }
+              });
+            }
+          });
+        });
+      }
+    });
   }
 
   render() {
@@ -466,8 +469,8 @@ class RankedChannels extends React.Component {
       }
       credrank.getChannelsByRanks(credsign.address, 1, numRanks, (error, tuple) => {
         var ids = tuple[0];
-        var cred = tuple[1].map((cred) => parseInt(cred.toString()));
-        var ranks = tuple[2].map((rank) => parseInt(rank.toString()));
+        var cred = tuple[1].map((cred) => cred.toNumber());
+        var ranks = tuple[2].map((rank) => rank.toNumber());
 
         var listItems = [];
         for (var i = 0; i < ids.length; i++) {
@@ -580,8 +583,8 @@ class ChannelPosts extends React.Component {
             idToIndex[id] = i;
             listItems.push({
               id: id,
-              cred: parseInt(tuple[1][i].toString()),
-              rank: parseInt(tuple[2][i].toString())
+              cred: tuple[1][i].toNumber(),
+              rank: tuple[2][i].toNumber()
             });
           }
           credsign.Post({contentID: tuple[0]}, {fromBlock: 0, toBlock: 'latest'}).get((error, posts) => {
@@ -607,6 +610,7 @@ class ChannelPosts extends React.Component {
     });
     credsign.getChannelByName(channel, (error, channelID) => {
       credsign.getNumContents(channelID, (error, numRanks) => {
+        numRanks = numRanks.toNumber();
         if (numRanks == 0) {
           this.setState({
             loading: false,
@@ -621,27 +625,28 @@ class ChannelPosts extends React.Component {
             channelName: getChannelName(channelID)
           });
         }
-        var sequenceNums = [Array.from(Array(numRanks))].map((_, i) => i + 1);
-        credsign.Post({channelID: channelID, sequenceNum: sequenceNums}, {fromBlock: 0, toBlock: 'latest'}).get((error, posts) => {
-          var ids = [];
+        var sequenceNums = Array.from(Array(2)).map((_, i) => i + 1);
+        credsign.ChannelSequence({channelID: channelID, sequenceNum: sequenceNums}, {fromBlock: 0, toBlock: 'latest'}).get((error, seqNums) => {
+          var ids = seqNums.map((seqNum) => seqNum.args.contentID);
           var listItems = [];
-          for (var i = 0; i < posts.length; i++) {
-            ids.push(posts[i].args.contentID);
-            listItems.push({
-              id: '0x' + ids[i].toString(16),
-              title: getContentTitle(posts[i].args.attributes),
-              timestamp: posts[i].args.timestamp
-            });
-          };
-          credrank.getCredRanksByContents(credsign.address, ids, (error, credRanks) => {
+          credsign.Post({contentID: ids}, {fromBlock: 0, toBlock: 'latest'}).get((error, posts) => {
             for (var i = 0; i < posts.length; i++) {
-              listItems[i].cred = parseInt(credRanks[0][i].toString());
-              listItems[i].rank = parseInt(credRanks[1][i].toString());
-            }
-            this.setState({
-              loading: false,
-              listItems: listItems.reverse(),
-              count: numRanks
+              listItems.push({
+                id: '0x' + ids[i].toString(16),
+                title: getContentTitle(posts[i].args.attributes),
+                timestamp: posts[i].args.timestamp
+              });
+            };
+            credrank.getCredRanksByContents(credsign.address, ids, (error, credRanks) => {
+              for (var i = 0; i < posts.length; i++) {
+                listItems[i].cred = credRanks[0][i].toNumber();
+                listItems[i].rank = credRanks[1][i].toNumber();
+              }
+              this.setState({
+                loading: false,
+                listItems: listItems.reverse(),
+                count: numRanks
+              });
             });
           });
         });
@@ -760,14 +765,14 @@ class Account extends React.Component {
           });
           credrank.getCredRanksByContents(credsign.address, ids, (error, credRanks) => {
             listItems.forEach((listItem, i) => {
-              listItem.cred = parseInt(credRanks[0][i].toString());
-              listItem.rank = parseInt(credRanks[1][i].toString());
+              listItem.cred = credRanks[0][i].toNumber();
+              listItem.rank = credRanks[1][i].toNumber();
               listItem.signed = signedContents.funds[listItem.id] !== undefined;
               listItem.funds = signedContents.funds[listItem.id] || 0;
             })
             this.setState({
               loading: false,
-              listItems: listItems
+              listItems: listItems.reverse()
             });
           });
         });
@@ -780,15 +785,18 @@ class Account extends React.Component {
         });
         var fundedIDs = signedContents.sequence.filter((contentID) => signedContents.funds[contentID] > 0);
         credsign.Post({contentID: fundedIDs}, {fromBlock: 0, toBlock: 'latest'}).get((error, posts) => {
+          var idToIndex = {};
+          posts.forEach((post, i) => idToIndex['0x' + post.args.contentID.toString(16)] = i);
           credrank.getCredRanksByContents(credsign.address, fundedIDs, (error, credRanks) => {
             fundedIDs.forEach((contentID, i) => {
+              var post = posts[idToIndex[contentID]];
               listItems.push({
                 id: contentID,
-                title: getContentTitle(posts[i].args.attributes),
-                channelName: getChannelName(posts[i].args.channelID),
-                timestamp: posts[i].args.timestamp,
-                cred: parseInt(credRanks[0][i].toString()),
-                rank: parseInt(credRanks[1][i].toString()),
+                title: getContentTitle(post.args.attributes),
+                channelName: getChannelName(post.args.channelID),
+                timestamp: post.args.timestamp,
+                cred: credRanks[0][i].toNumber(),
+                rank: credRanks[1][i].toNumber(),
                 signed: true,
                 funds: signedContents.funds[contentID]
               });
@@ -807,15 +815,18 @@ class Account extends React.Component {
           aggregateSignature(signedContents, signature);
         });
         credsign.Post({contentID: signedContents.sequence}, {fromBlock: 0, toBlock: 'latest'}).get((error, posts) => {
+          var idToIndex = {};
+          posts.forEach((post, i) => idToIndex['0x' + post.args.contentID.toString(16)] = i);
           credrank.getCredRanksByContents(credsign.address, signedContents.sequence, (error, credRanks) => {
             signedContents.sequence.forEach((contentID, i) => {
+              var post = posts[idToIndex[contentID]];
               listItems.push({
                 id: contentID,
-                title: getContentTitle(posts[i].args.attributes),
-                channelName: getChannelName(posts[i].args.channelID),
-                timestamp: posts[i].args.timestamp,
-                cred: parseInt(credRanks[0][i].toString()),
-                rank: parseInt(credRanks[1][i].toString()),
+                title: getContentTitle(post.args.attributes),
+                channelName: getChannelName(post.args.channelID),
+                timestamp: post.args.timestamp,
+                cred: credRanks[0][i].toNumber(),
+                rank: credRanks[1][i].toNumber(),
                 signed: true,
                 funds: signedContents.funds[contentID]
               });
