@@ -14,7 +14,6 @@ body {
   background-color: #F9F9F9;
     /* Put a border to seperate Mist Nav UI */
   border-left: 1px solid #DDD;
-  width: 100%;
   height: 100%;
 }
 div#main {
@@ -62,7 +61,7 @@ h1 {
   }
   /* Break up toolbar to two rows of 4 */
   .medium-editor-toolbar-actions {
-    max-width: 240px;
+    max-width: 180px;
 
   }
   /* Fit the link + buttons in the same line */
@@ -74,16 +73,14 @@ h1 {
   .medium-editor-toolbar li button.medium-editor-action {
     border-bottom: 1px solid #5b3a0e;
   }
-  .collapsable {
-    display: none;
-  }
 }
 
 blockquote {
-  margin: 25px;
-  border-left: 6px solid #df0d32;
-  padding-left: 9px;
-  margin-left: -15px;
+  border-left: .4em solid #df0d32;
+  padding-left: .6em;
+  margin-left: -1em;
+  line-height: 1.5em;
+  margin-right: 0;
   color: #555;
   font-family: 'Martel', serif;
 }
@@ -94,7 +91,7 @@ div.medium-editor-placeholder:after {
 }
 
 /** ----------- LIST CSS ------------- */
-.view-align ul {
+#filter ul {
   list-style-type: none;
   padding: 0;
   margin: 0;
@@ -102,7 +99,7 @@ div.medium-editor-placeholder:after {
   border-radius: 5px;
   cursor: pointer;
 }
-.view-align ul > li {
+#filter ul > li {
   display: block;
   background-color: white;
   padding: .5em 1em;
@@ -112,6 +109,11 @@ div.medium-editor-placeholder:after {
   border-top: 1px solid #EEE;
   -webkit-transition: background-color .2s ease-in,color .2s ease-in;
   transition: background-color .2s ease-in,color .2s ease-in;
+}
+
+#suggestions {
+  -webkit-transition: max-height .2s ease-in;
+  transition: max-height .2s ease-in;
 }
 
 ul.dropdown {
@@ -136,19 +138,18 @@ ul.dropdown > li:hover {
   background-color: #FCFCFC;
 }
 
-.view-align {
-  padding: 0;
+.feed {
   max-width: 600px;
   margin: 0 auto;
 }
 
-.view-align > ol {
+.feed ol {
   padding: 0;
   margin: 0;
   list-style-type: none;
 }
 
-.view-align > ol > li {
+.feed ol > li {
   display: block;
   margin-bottom: 1em;
   background-color: #FFF;
@@ -156,11 +157,11 @@ ul.dropdown > li:hover {
   -webkit-transition: background-color .2s ease-in,color .2s ease-in;
   transition: background-color .2s ease-in,color .2s ease-in;
 }
-.view-align > ol > li:hover {
+.feed ol > li:hover {
   background-color: #FCFCFC;
 }
 
-.view-align > ol > li span {
+.feed ol > li span {
   color: gray;
   font-weight: normal;
   font-size: 69%;
@@ -178,6 +179,10 @@ a {
   cursor: pointer;
 }
 
+.post ul, post li, post ol {
+  font-family: 'Martel', serif;
+}
+
 .post p {
   font-family: 'Martel', serif;
   line-height: 1.5em;
@@ -185,6 +190,17 @@ a {
 
 .post img {
   max-width: 100%;
+}
+.post pre, .post code {
+  margin: -1em;
+  padding: 1em;
+  background-color: #F9F9F9;
+  font-family: 'Martel', serif;
+  line-height: 1.5em;
+}
+.post pre + pre {
+  margin-top: 0em;
+  padding-top: 0em;
 }
 
 li a {
@@ -209,7 +225,7 @@ li a {
   display: flex;
 }
 
-#channel::-webkit-input-placeholder {
+#filter::-webkit-input-placeholder {
   color: gray;
 }
 

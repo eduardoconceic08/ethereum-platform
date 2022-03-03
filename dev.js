@@ -8,36 +8,45 @@ var spawn = require('child_process').spawn;
 var Web3 = require('web3');
 var webpack = require('webpack');
 
-var geth, server, socket;
+var geth, server;
 
 
 process.on('exit', () => {
   server && server.close();
   geth && geth.close();
-  socket && socket.end();
 });
 
-if (argv.privnet) {
-  startPrivnetServer(() => {});
+if (argv.sync) {
+  if (argv.network == 'mainnet') {
+    startMainnetServer(() => {});
+  }
+  else if (argv.network == 'testnet') {
+    startTestnetServer(argv.mine, () => {});
+  }
+  else if (argv.network == 'privnet') {
+    startPrivnetServer(() => {});
+  }
 }
-else if (argv.testnet) {
-  startTestnetServer(() => {});
-}
-else if (argv.frontend) {
+else if (argv.serve) {
   buildFrontend();
 }
-else if (argv.contracts) {
+else if (argv.deploy) {
   var network = argv.network || '';
-  var mode = argv.deploy || 'storage';
-  deploy(network, mode, () => {});
+  var mode = argv.contracts || 'all';
+  var socket = new Socket();
+  deploy(network, mode, socket, (error) => {
+    if (error) {
+      console.log(error.toString());
+    }
+    socket.end();
+  });
 }
 else {
   console.error(
     '\nCommands:\n'+
-    '\t--privnet\n'+
-    '\t--testnet\n'+
-    '\t--frontend\n'+
-    '\t--contracts --network=[testnet|privnet] --mode=[storage]\n'
+    '\t--sync --network=[mainnet|testnet|privnet] [--mine]\n'+
+    '\t--serve\n'+
+    '\t--deploy --network=[mainnet|testnet|privnet] --contracts=[all]\n'
   );
 }
 
@@ -67,14 +76,60 @@ function startPrivnetServer(callback) {
   })
 }
 
-function startTestnetServer(callback) {
+function startTestnetServer(mine, callback) {
   geth = spawn('./geth', [
+    '--datadir', './testnet/node/datadir',
+    'init', './testnet/node/genesis.json'
+  ]);
+  geth.on('close', (code) => {
+    geth = spawn('./geth', [
+      '--datadir=./testnet/node/datadir',
+      '--ipcpath='+getIPCPath(),
+      '--networkid=3',
+      '--verbosity=4'
+    ].concat( mine ? ['js', './testnet/node/miner.js'] : [] ));
+
+    // Create an account if this is a fresh sync with no accounts
+    if (mine) {
+      var socket = new Socket();
+      var web3 = new Web3(new Web3.providers.IpcProvider(getIPCPath(), socket));
+      (function getAccount() {
+        web3.eth.getAccounts((error, result) => {
+          if (error) {
+            setTimeout(getAccount, 1000);
+          }
+          else if (result.length == 0) {
+            web3.personal.newAccount(readlineSync.question(`> Password for new account: `, { hideEchoBack: true, mask: '' }), () => {
+              socket.end();
+              callback();
+            });
+          }
+          else {
+            socket.end();
+            callback();
+          }
+        });
+      })();
+    }
+    else {
+      callback();
+    }
+    geth.stdout.on('data', (data) => {
+      console.log(`stdout: ${data}`);
+    });
+    geth.stderr.on('data', (data) => {
+      console.log(`stderr: ${data}`);
+    });
+  })
+}
+
+function startMainnetServer(callback) {
+  geth = spawn('./geth', [
+    // '--ipcdisable',
+    // '--port=30304',
     '--ipcpath='+getIPCPath(),
     '--cache=1024',
-    // '--fast',
-    '--rpc',
-    '--rpccorsdomain=*',
-    '--testnet',
+    '--fast',
     '--verbosity=4'
   ]);
   callback();
@@ -89,19 +144,14 @@ function startTestnetServer(callback) {
 function buildFrontend() {
   server = spawn('python', ['-m', 'SimpleHTTPServer']);
   webpack({
-    context: path.resolve(process.cwd(), 'app', 'src'),
-    entry: './scripts/initialize.jsx',
+    devtool: 'source-map',
+    entry: './app/src/scripts/initialize.jsx',
     module: {
       loaders: [
         {
           test: /\.(js|jsx)$/,
           loader: 'babel-loader',
           // exclude: /node_modules/,
-          plugins: [
-            // new webpack.optimize.UglifyJsPlugin({
-            //   compress: { warnings: false }
-            // })
-          ],
           query: {
             presets: ['es2015', 'react']
           }
@@ -109,6 +159,16 @@ function buildFrontend() {
       ]
     },
     output: { path: './app/dist/', filename: 'bundle.js' },
+    plugins: [
+      new webpack.DefinePlugin({
+        'process.env': {
+          NODE_ENV: JSON.stringify('production')
+        }
+      }),
+      new webpack.optimize.UglifyJsPlugin({
+        compress: { warnings: true }
+      })
+    ],
     watch: true
   }, function (err, stats) {
     var errors = stats.compilation.errors;
@@ -139,64 +199,64 @@ function getIPCPath() {
   }
 }
 
-function deploy(network, mode, done) {
-  socket = new Socket();
+function deploy(network, mode, socket, done) {
   var web3 = new Web3(new Web3.providers.IpcProvider(getIPCPath(), socket));
 
   var sources = {};
-  try {
-    fs.readdirSync('./contracts')
-    .filter((filename) => filename.slice(-4) == '.sol')
-    .forEach((filename) => {
-      var symbolName = filename.slice(0, -4);
-      if (sources[symbolName] === undefined) {
-        var dependencies = [];
-        var compilation = solc.compile({
-          sources: { [symbolName]: fs.readFileSync(path.resolve('./contracts', filename), 'utf-8') }
-        }, 0, (dependencyFilename) => {
-          dependencies.push(dependencyFilename.slice(0, -4));
-          return {
-            contents: fs.readFileSync(path.resolve('./contracts', dependencyFilename), 'utf-8')
-          };
-        });
-
-        if (compilation.errors) {
-          throw new Error(compilation.errors.toString());
-        }
-        sources[symbolName] = {
-          bytecode: compilation.contracts[symbolName].bytecode,
-          dependencies: dependencies,
-          interface: JSON.parse(compilation.contracts[symbolName].interface),
-        };
-        console.log('* Compiled ' + symbolName);
+  (function readContracts(base, sub) {
+    fs.readdirSync(base + sub).forEach(function(file) {
+      var path = sub + file;
+      if (fs.statSync(base + path).isDirectory()) {
+        readContracts(base, path + '/');
+      }
+      else if (path.slice(-4) == '.sol') {
+        sources[path] = fs.readFileSync(base + path, 'utf-8')
       }
     });
+  })('./contracts/', '');
+  console.log(`* Loaded ${Object.keys(sources).length} contracts`);
+
+  var compiled = {};
+  var compilation = solc.compile({sources: sources});
+  if (compilation.errors) {
+    console.log('x Failed to compile contracts');
+    done(compilation.errors);
+    return;
   }
-  catch (e) {
-    done(e);
-  }
+  console.log('* Compiled contracts');
 
   var account;
   var password;
   var contracts = {};
   var oldContracts = {};
-  (function waitForAccounts() {
+  (function getAccount() {
     web3.eth.getAccounts((error, result) => {
-      if (error || result.length == 0) {
-        setTimeout(waitForAccounts, 1000);
+      if (error) {
+        setTimeout(getAccount, 1000);
+      }
+      else if (result.length == 0) {
+        throw new Error('No accounts available');
       }
       else {
         account = result[0];
-        password = readlineSync.question(`Password for account ${account}: `, { hideEchoBack: true, mask: '' });
+        password = readlineSync.question(`> Account password (${account}): `, { hideEchoBack: true, mask: '' });
 
         try {
           oldContracts = JSON.parse(fs.readFileSync(path.resolve(network, 'contracts.json'), 'utf-8'));
         }
         catch (e) { }
 
-        if (mode == 'storage') {
-          deployContract('Indexer', [], () => {
-            deployContract('Publisher', [], writeContracts);
+        if (mode == 'all') {
+          deployContract('Identity', [], () => {
+            deployContract('Index', [], () => {
+              deployContract('Content', [], () => {
+                deployContract('ChannelSeries', [ contracts['Content'].address ], () => {
+                  deployContract('ContentSeries', [ contracts['Content'].address ], () => {
+                    deployContract('AddressSeries', [ contracts['Content'].address ], writeContracts);
+                  });
+                });
+              });
+            });
           });
         }
         else {
@@ -207,13 +267,13 @@ function deploy(network, mode, done) {
   })();
 
   function deployContract(symbolName, constructorArgs, callback) {
-    var interface = sources[symbolName].interface;
-    var bytecode = sources[symbolName].bytecode;
-    var contract = web3.eth.contract(interface);
+    var interface = JSON.parse(compilation.contracts[symbolName].interface);
+    var bytecode = compilation.contracts[symbolName].bytecode;
     var dependencies = {};
-    sources[symbolName].dependencies.forEach((dependency) => {
-      dependencies[dependency] = contracts[dependency].address;
+    Object.keys(contracts).forEach((symbol) => {
+      dependencies[symbol] = contracts[symbol].address;
     });
+    var contract = web3.eth.contract(interface);
     bytecode = contract.new.getData.apply(this, constructorArgs.concat({
       data: solc.linkBytecode(bytecode, dependencies)
     }));
@@ -237,7 +297,7 @@ function deploy(network, mode, done) {
               address: result.address,
               interface: interface
             };
-            console.log('* Deployed ' + symbolName);
+            console.log(`* Deployed ${symbolName} contract`);
             callback();
           }
         });
@@ -246,9 +306,10 @@ function deploy(network, mode, done) {
   }
 
   function writeContracts() {
-    fs.writeFileSync(path.resolve(process.cwd(), network, 'contracts.json'), JSON.stringify(contracts));
-    console.log('* Contract interfaces saved');
-    socket.end();
+    var directory = network == 'mainnet' ? '' : network;
+    var filepath = path.resolve(process.cwd(), directory, 'contracts.json');
+    fs.writeFileSync(filepath, JSON.stringify(contracts));
+    console.log(`* Contract interfaces written to: ${filepath}`);
     done();
   }
 }
