@@ -148,6 +148,9 @@ ul.dropdown > li:hover {
   margin: 0;
   list-style-type: none;
 }
+.feed ol > li:last-child {
+  margin-bottom: 0;
+}
 
 .feed ol > li {
   display: block;
@@ -177,6 +180,10 @@ a {
   color: inherit;
   /* Needed for anchors without href attribute */
   cursor: pointer;
+}
+
+#new-post-body span {
+  color: inherit !important;
 }
 
 .post ul, post li, post ol {
