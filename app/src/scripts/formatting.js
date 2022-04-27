@@ -57,14 +57,18 @@ export function serializeDocument(document, format, compression) {
   }
 }
 
+export function getRandom() {
+  return parseInt(Math.random() * 2147483647);
+}
+
 export function getContentProps(contentIDs, callback) {
-  var cacheBustedContentIDs = [Math.random() * 2147483647].concat(contentIDs);
-  window.read.getContents(cacheBustedContentIDs, (error, rawProps) => {
+  window.read.getContents(contentIDs, getRandom(), (error, rawProps) => {
     let contentProps = [];
-    for (let i = 1; i < cacheBustedContentIDs.length; i++) {
+    for (let i = 0; i < contentIDs.length; i++) {
       let ether = web3.toWei(1);
       let props = {
-        contentID: contentIDs[i].toString(16),
+        // TODO: normalize contentID inputs around "0x" formatting
+        contentID: '0x' + contentIDs[i].toString(16).replace('0x', ''),
         block: rawProps[0][i].toNumber(),
         funds: rawProps[1][i].dividedBy(ether).toNumber(),
         token: rawProps[2][i],
@@ -83,8 +87,21 @@ export function getContentProps(contentIDs, callback) {
   });
 }
 
+export function cacheContent(contentID, content) {
+  window.contentCache[contentID] = {
+    contentID: contentID,
+    publisher: content.args.publisher,
+    token: content.args.token,
+    headers: content.args.headers,
+    document: content.args.document,
+    parentID: '0x' + content.args.parentID.toString(16),
+    timestamp: content.args.timestamp.toNumber()
+  };
+}
+
 export function getContentPosts(contentIDs, blocks, callback) {
   let loaded = 0;
+  contentIDs = contentIDs.map(contentID => '0x' + contentID.toString(16).replace('0x', ''));
   for (let i = 0; i < contentIDs.length; i++) {
     let contentID = contentIDs[i];
     if (window.contentCache[contentID]) {
@@ -96,15 +113,7 @@ export function getContentPosts(contentIDs, blocks, callback) {
       window.post.Content({contentID: contentID}, {fromBlock: blocks[i], toBlock: blocks[i]}).get((error, rawPost) => {
         if (rawPost && rawPost.length == 1) {
           // TODO: Save to local storage here
-          window.contentCache[contentID] = {
-            contentID: '0x' + rawPost[0].args.contentID.toString(16),
-            publisher: rawPost[0].args.publisher,
-            token: rawPost[0].args.token,
-            headers: rawPost[0].args.headers,
-            document: rawPost[0].args.document,
-            parentID: '0x' + rawPost[0].args.parentID.toString(16),
-            timestamp: rawPost[0].args.timestamp.toNumber()
-          };
+          cacheContent(contentID, rawPost[0]);
         }
         if (++loaded == contentIDs.length) {
           callback(null, contentIDs.map(contentID => Object.assign({}, window.contentCache[contentID])));
@@ -135,7 +144,7 @@ export function submitPost(title, doc, token, parentID, callback) {
       console.log(gasEstimate);
       tx.gas = gasEstimate + 100000;
       window.post.publish(serializedHeaders, serializedDocument, token, parentID, tx, (error) => {
-        callback(error, contentID);
+        callback(error, '0x' + contentID.toString(16));
       });
     });
   });

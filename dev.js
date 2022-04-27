@@ -46,7 +46,7 @@ else {
     '\nCommands:\n'+
     '\t--sync --network=[mainnet|testnet|privnet] [--mine]\n'+
     '\t--serve\n'+
-    '\t--deploy --network=[mainnet|testnet|privnet] --contracts=[all|index]\n'
+    '\t--deploy --network=[mainnet|testnet|privnet] --contracts=[all|read]\n'
   );
 }
 
@@ -260,18 +260,18 @@ function deploy(network, mode, socket, done) {
           deployContract('Feed', [], () => {
             deployContract('Read', [ contracts.Feed.address ], () => {
               deployContract('Post', [ contracts.Feed.address ], () => {
-                web3.eth.contract(contracts.Feed.interface).at(contracts.Feed.address).updatePublishContract(
-                  contracts.Post.address,
-                  { from: account, gas: 200000 },
-                  writeContracts
-                );
+                let feedContract = web3.eth.contract(contracts.Feed.interface).at(contracts.Feed.address);
+                feedContract.updatePublishContract(contracts.Post.address, { from: account, gas: 200000 }, () => {
+                  feedContract.updateChannelMinimum(0, 1, { from: account, gas: 200000 }, writeContracts);
+                });
               })
             });
           });
         }
         else if (mode == 'read') {
           contracts = {
-            'Feed': oldContracts['Feed']
+            'Feed': oldContracts['Feed'],
+            'Post': oldContracts['Post']
           };
           deployContract('Read', [ contracts.Feed.address ], writeContracts);
         }
